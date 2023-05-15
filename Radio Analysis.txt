@@ -1,0 +1,173 @@
+-- The average rating per color
+SELECT color,
+       AVG(average_rating) AS average_rating_per_color
+FROM products
+WHERE sub_category = 'Women/Shoes'
+GROUP BY color
+ORDER BY AVG(average_rating) DESC;
+
+-- Selecting top 5 highest selling colors
+SELECT color,
+       SUM(quantity) AS quantity_per_color
+FROM sales AS s
+JOIN products AS p
+ON s.product_id = p.product_id
+GROUP BY color
+ORDER BY SUM(quantity) DESC
+LIMIT 5;
+
+-- 50 Men's products that have high ratings and at least 500 reviews
+SELECT sub_category,
+       average_rating,
+       reviews_count
+FROM products
+WHERE SUBSTRING(sub_category,1, 3) = 'Men' AND reviews_count >= 500
+ORDER BY average_rating DESC
+LIMIT 50;
+
+-- Top customer based on the number of products bought
+SELECT customer_name,
+       quantity
+FROM customer AS c
+JOIN sales AS s
+ON c.customer_id = s.customer_id
+ORDER BY quantity DESC
+LIMIT 100;
+
+-- Two brands that are most preferred by men
+SELECT brand_name,
+       SUM(quantity) AS quantity_per_brand
+FROM products AS p
+JOIN sales AS s
+ON p.product_id = s.product_id
+WHERE sub_category = 'Men/Shoes'
+GROUP BY brand_name
+ORDER BY SUM(quantity) DESC
+LIMIT 2;
+
+-- Highest percentage profit margin
+SELECT sub_category,
+       total_profit/total_sales *100 AS profit_margin
+FROM (
+SELECT sub_category,
+       SUM(sales) AS total_sales,
+       SUM(profit) AS total_profit   
+FROM products AS p
+JOIN sales AS s
+ON p.product_id = s.product_id
+GROUP BY sub_category) AS a
+ORDER BY total_profit/total_sales *100 DESC
+LIMIT 10;
+
+-- List of colors correspond to sum of sales, review count and rating
+SELECT color,
+       SUM(sales) AS sales,
+       reviews_count AS reviews,
+       average_rating AS rating
+FROM products AS p
+JOIN sales AS s
+ON p.product_id = s.product_id
+WHERE reviews_count >= 100 AND average_rating >=4
+GROUP BY color, reviews_count, average_rating
+
+-- Number of orders, total sales and total profit per delivery mode
+SELECT delivery_mode,
+       COUNT(DISTINCT(order_id)) AS number_of_orders,
+       SUM(sales) AS total_sales,
+       SUM(profit) AS total_profit
+FROM sales
+GROUP BY delivery_mode;
+
+-- Average profit per order for the past year
+SELECT order_id,
+       brand_name,
+       AVG(profit) AS average_profit
+FROM products AS p
+JOIN sales AS s
+ON p.product_id = s.product_id
+WHERE SUBSTRING(order_date,1,4) = 2022
+GROUP BY order_id, brand_name
+ORDER BY  AVG(profit) DESC;
+
+-- Percentage shoes sold last year
+SELECT SUM(quantity)/1365 *100 AS percentage_shoes_sold
+FROM (
+SELECT s.order_date,
+       c.state,
+       p.sub_category,
+       s.quantity
+FROM customer AS c
+JOIN sales AS s
+ON c.customer_id = s.customer_id
+JOIN products AS p
+ON s.product_id = p.product_id
+WHERE SUBSTRING(order_date, 1, 4) = 2022 AND (state = 'California' 
+      OR state = 'New York' OR state = 'Texas') AND sub_category = 'Men/Shoes') AS a;
+
+-- Best selling products based on quantity sold
+SELECT c.state,
+       p.sub_category,
+       p.product_name,
+       p.brand_name,
+       p.color,
+       s.quantity AS total_products_sold
+FROM customer AS c
+JOIN sales AS s
+ON c.customer_id = s.customer_id
+JOIN products AS p
+ON s.product_id = p.product_id
+WHERE state = 'California' AND RIGHT(sub_category, 5) = 'Shoes'
+      AND color = 'White'
+ORDER BY s.quantity DESC
+LIMIT 5
+
+--
+WITH cte_profit_per_sub_category
+AS (
+SELECT sub_category,
+       CASE WHEN RIGHT(sub_category, 8) = 'Clothing' THEN 'Clothing' 
+       WHEN RIGHT(Sub_category, 5) = 'Shoes' THEN 'Shoes'
+       ELSE 'Accessories' END AS categories,
+       SUM(s.profit) AS total_profit
+FROM customer AS c
+JOIN sales AS s
+ON c.customer_id = s.customer_id
+JOIN products AS p
+ON s.product_id = p.product_id
+WHERE state = 'New York'
+GROUP BY sub_category)
+
+SELECT categories,
+       Sum(total_profit)
+FROM cte_profit_per_sub_category
+GROUP BY categories;
+
+-- Brand with the highest profit in summer months
+SELECT month,
+       brand_name,
+       SUM(profit) AS total_profit
+FROM (
+SELECT brand_name,
+       order_date,
+CASE WHEN SUBSTRING(order_date, 6, 8) = 06  THEN 'June'
+     WHEN SUBSTRING(order_date, 6, 8) = 07 THEN 'July'
+     ELSE 'August' END AS month,
+     profit
+FROM products AS p
+JOIN sales AS s
+ON p.product_id = s.product_id
+WHERE  SUBSTRING(order_date, 1, 4)= 2019 AND (SUBSTRING(or der_date, 6, 8) = 06 
+       OR SUBSTRING(order_date, 6, 8) = 07 OR SUBSTRING(order_date, 6, 8) = 08)) AS a
+GROUP BY month, brand_name
+
+-- Top 2 brands with the highest sales on the given time period
+SELECT brand_name,
+       SUBSTRING_INDEX(sub_category, '/' , -1) AS categories,
+       SUM(sales) total_sales
+FROM products AS p
+JOIN sales AS s
+ON p.product_id = s.product_id
+WHERE (order_date>= '2019-01-01' AND order_date <= '2019-06-30') 
+      AND delivery_mode = 'Standard Delivery'
+GROUP BY brand_name, SUBSTRING_INDEX(sub_category, '/' , -1)
+ORDER BY SUM(sales) DESC;
