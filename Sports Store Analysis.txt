@@ -142,7 +142,7 @@ SELECT categories,
 FROM cte_profit_per_sub_category
 GROUP BY categories;
 
--- Brand with the highest profit in summer months
+-- Brand with the highest profit in winter months
 SELECT month,
        brand_name,
        SUM(profit) AS total_profit
